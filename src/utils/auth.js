@@ -84,16 +84,23 @@ function getAmzDate() {
         const region = process.env.SP_API_REGION || 'us-east-1';
         const url = `https://${getSpApiHost(region)}${path}`;
 
+        const headers = {
+          'x-amz-access-token': accessToken,
+          'x-amz-date': getAmzDate(),
+          'user-agent': 'amazon-sp-api-mcp-server/1.0.0 (Language=JavaScript)'
+        };
+
+        // Only set Content-Type for requests that carry a body
+        if (data !== null) {
+          headers['Content-Type'] = 'application/json';
+        }
+
         const response = await axios({
           method,
           url,
           params: queryParams,
           data: data,
-          headers: {
-            'x-amz-access-token': accessToken,
-            'x-amz-date': getAmzDate(),
-            'Content-Type': 'application/json'
-          }
+          headers
         });
         
         return response.data;
