@@ -1,5 +1,36 @@
 import axios from 'axios';
-    import crypto from 'crypto-js';
+
+const SP_API_ENDPOINT_SUFFIX_BY_SIGNING_REGION = {
+  'us-east-1': 'na',
+  'eu-west-1': 'eu',
+  'us-west-2': 'fe'
+};
+
+function getSpApiHost(signingRegion) {
+  const endpointSuffix = process.env.SP_API_ENDPOINT_REGION || SP_API_ENDPOINT_SUFFIX_BY_SIGNING_REGION[signingRegion];
+
+  if (!endpointSuffix) {
+    throw new Error(
+      `Unsupported SP_API_REGION \"${signingRegion}\". Set SP_API_ENDPOINT_REGION to one of: na, eu, fe.`
+    );
+  }
+
+  return `sellingpartnerapi-${endpointSuffix}.amazon.com`;
+}
+
+function getRequiredEnv(name) {
+  const value = process.env[name];
+
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+
+  return value;
+}
+
+function getAmzDate() {
+  return new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
+}
 
     // Cache for access tokens
     let accessTokenCache = {
@@ -18,14 +49,16 @@ import axios from 'axios';
       }
 
       try {
-        const response = await axios.post('https://api.amazon.com/auth/o2/token', {
+        const body = new URLSearchParams({
           grant_type: 'refresh_token',
-          refresh_token: process.env.SP_API_REFRESH_TOKEN,
-          client_id: process.env.SP_API_CLIENT_ID,
-          client_secret: process.env.SP_API_CLIENT_SECRET
-        }, {
+          refresh_token: getRequiredEnv('SP_API_REFRESH_TOKEN'),
+          client_id: getRequiredEnv('SP_API_CLIENT_ID'),
+          client_secret: getRequiredEnv('SP_API_CLIENT_SECRET')
+        });
+
+        const response = await axios.post('https://api.amazon.com/auth/o2/token', body.toString(), {
           headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
+            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
           }
         });
 
@@ -43,86 +76,14 @@ import axios from 'axios';
     }
 
     /**
-     * Generate AWS signature for SP-API requests
-     */
-    export function generateAWSSignature(method, path, payload = '', queryParams = {}) {
-      const region = process.env.SP_API_REGION || 'us-east-1';
-      const service = 'execute-api';
-      const host = `sellingpartnerapi-${region}.amazon.com`;
-      const datetime = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
-      const date = datetime.substring(0, 8);
-
-      // Create canonical request
-      const canonicalUri = path;
-      
-      // Sort and encode query parameters
-      const canonicalQueryString = Object.keys(queryParams)
-        .sort()
-        .map(key => {
-          return `${encodeURIComponent(key)}=${encodeURIComponent(queryParams[key])}`;
-        })
-        .join('&');
-
-      // Create canonical headers
-      const canonicalHeaders = 
-        `host:${host}\n` +
-        `x-amz-date:${datetime}\n`;
-
-      const signedHeaders = 'host;x-amz-date';
-      
-      // Create payload hash
-      const payloadHash = crypto.SHA256(payload).toString();
-      
-      // Combine elements to create canonical request
-      const canonicalRequest = 
-        `${method}\n` +
-        `${canonicalUri}\n` +
-        `${canonicalQueryString}\n` +
-        `${canonicalHeaders}\n` +
-        `${signedHeaders}\n` +
-        `${payloadHash}`;
-      
-      // Create string to sign
-      const algorithm = 'AWS4-HMAC-SHA256';
-      const credentialScope = `${date}/${region}/${service}/aws4_request`;
-      const stringToSign = 
-        `${algorithm}\n` +
-        `${datetime}\n` +
-        `${credentialScope}\n` +
-        `${crypto.SHA256(canonicalRequest).toString()}`;
-      
-      // Calculate signature
-      const kDate = crypto.HmacSHA256(date, `AWS4${process.env.SP_API_AWS_SECRET_KEY}`);
-      const kRegion = crypto.HmacSHA256(region, kDate);
-      const kService = crypto.HmacSHA256(service, kRegion);
-      const kSigning = crypto.HmacSHA256('aws4_request', kService);
-      const signature = crypto.HmacSHA256(stringToSign, kSigning).toString();
-      
-      // Create authorization header
-      const authorizationHeader = 
-        `${algorithm} ` +
-        `Credential=${process.env.SP_API_AWS_ACCESS_KEY}/${credentialScope}, ` +
-        `SignedHeaders=${signedHeaders}, ` +
-        `Signature=${signature}`;
-      
-      return {
-        'x-amz-date': datetime,
-        'Authorization': authorizationHeader
-      };
-    }
-
-    /**
      * Make a request to the SP-API
      */
     export async function makeSpApiRequest(method, path, data = null, queryParams = {}) {
       try {
         const accessToken = await getAccessToken();
         const region = process.env.SP_API_REGION || 'us-east-1';
-        const url = `https://sellingpartnerapi-${region}.amazon.com${path}`;
-        
-        const payload = data ? JSON.stringify(data) : '';
-        const awsHeaders = generateAWSSignature(method, path, payload, queryParams);
-        
+        const url = `https://${getSpApiHost(region)}${path}`;
+
         const response = await axios({
           method,
           url,
@@ -130,8 +91,8 @@ import axios from 'axios';
           data: data,
           headers: {
             'x-amz-access-token': accessToken,
-            'Content-Type': 'application/json',
-            ...awsHeaders
+            'x-amz-date': getAmzDate(),
+            'Content-Type': 'application/json'
           }
         });
         

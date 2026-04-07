@@ -35,7 +35,7 @@ import { z } from 'zod';
         description: "Returns the eligibility status of an item for the specified program"
       },
       
-      getInventorySummaries: {
+      getFbaInventorySummaries: {
         schema: {
           details: z.boolean().optional().describe("When true, returns inventory summaries with additional summarized inventory details"),
           granularityType: z.enum(['Marketplace', 'ASIN', 'Seller']).describe("The granularity type for the inventory aggregation level"),
@@ -72,7 +72,7 @@ import { z } from 'zod';
             };
           }
         },
-        description: "Returns a list of inventory summaries for the specified criteria"
+        description: "Returns a list of FBA inventory summaries for the specified criteria"
       },
       
       getShipments: {

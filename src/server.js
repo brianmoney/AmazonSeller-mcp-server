@@ -25,9 +25,9 @@ import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mc
       Object.entries(toolsModule).forEach(([name, toolConfig]) => {
         server.tool(
           name,
+          toolConfig.description,
           toolConfig.schema,
-          toolConfig.handler,
-          { description: toolConfig.description }
+          toolConfig.handler
         );
       });
     };
