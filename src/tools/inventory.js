@@ -12,14 +12,12 @@ import { z } from 'zod';
         handler: async ({ sellerSkus, marketplaceId, granularityType, granularityId }) => {
           try {
             const marketplace = marketplaceId || process.env.SP_API_MARKETPLACE_ID;
+            const resolvedGranularityId = granularityId || (granularityType === 'Marketplace' ? marketplace : undefined);
             const queryParams = {
               marketplaceIds: marketplace,
-              granularityType
+              granularityType,
+              granularityId: resolvedGranularityId
             };
-            
-            if (granularityId) {
-              queryParams.granularityId = granularityId;
-            }
             
             if (sellerSkus && sellerSkus.length > 0) {
               queryParams.sellerSkus = sellerSkus.join(',');

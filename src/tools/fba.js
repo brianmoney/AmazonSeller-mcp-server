@@ -45,15 +45,13 @@ import { z } from 'zod';
         handler: async ({ details, granularityType, granularityId, marketplaceId }) => {
           try {
             const marketplace = marketplaceId || process.env.SP_API_MARKETPLACE_ID;
+            const resolvedGranularityId = granularityId || (granularityType === 'Marketplace' ? marketplace : undefined);
             const queryParams = {
               details: details ? 'true' : 'false',
               granularityType,
+              granularityId: resolvedGranularityId,
               marketplaceIds: marketplace
             };
-            
-            if (granularityId) {
-              queryParams.granularityId = granularityId;
-            }
             
             const data = await makeSpApiRequest(
               'GET',

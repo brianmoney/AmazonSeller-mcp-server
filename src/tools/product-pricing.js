@@ -48,9 +48,13 @@ import { z } from 'zod';
             const marketplace = marketplaceId || process.env.SP_API_MARKETPLACE_ID;
             const queryParams = {
               ItemType: itemType,
-              ItemIds: itemIds.join(','),
               MarketplaceId: marketplace
             };
+            if (itemType === 'Asin') {
+              queryParams.Asins = itemIds.join(',');
+            } else {
+              queryParams.SellerSKUs = itemIds.join(',');
+            }
             
             const data = await makeSpApiRequest(
               'GET',
