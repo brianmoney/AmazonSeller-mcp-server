@@ -23,7 +23,7 @@ function paramsSerializer(params) {
         parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(item)}`);
       }
     } else {
-      parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+      parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value)).replace(/%2C/gi, ',')}`);
     }
   }
   return parts.join('&');
@@ -45,9 +45,27 @@ test('includedData array serializes as repeated keys', () => {
     marketplaceIds: ['ATVPDKIKX0DER'],
     includedData: ['summaries', 'attributes', 'issues']
   });
+  // This shows what the serializer produces for arrays (repeated keys).
+  // NOTE: SP-API's includedData param requires CSV format, not repeated keys.
+  // The listings handler pre-joins includedData to a CSV string before
+  // building queryParams, so it arrives here as a single string value, not an array.
   assert.equal(
     result,
     'marketplaceIds=ATVPDKIKX0DER&includedData=summaries&includedData=attributes&includedData=issues'
+  );
+});
+
+test('includedData as pre-joined CSV string passes through as single value', () => {
+  // This is the actual shape getListingsItem sends after the .join() fix.
+  // Commas are preserved (not percent-encoded) so SP-API receives:
+  //   includedData=summaries,attributes,issues
+  const result = paramsSerializer({
+    marketplaceIds: ['ATVPDKIKX0DER'],
+    includedData: 'summaries,attributes,issues'
+  });
+  assert.equal(
+    result,
+    'marketplaceIds=ATVPDKIKX0DER&includedData=summaries,attributes,issues'
   );
 });
 

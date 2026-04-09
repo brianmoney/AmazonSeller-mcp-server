@@ -108,7 +108,9 @@ function getAmzDate() {
                   parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(item)}`);
                 }
               } else {
-                parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+                // Preserve commas so CSV params like includedData=summaries,attributes,issues
+                // are not percent-encoded — SP-API expects bare commas for those values.
+                parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value)).replace(/%2C/gi, ',')}`);
               }
             }
             return parts.join('&');

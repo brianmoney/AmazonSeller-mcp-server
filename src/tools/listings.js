@@ -14,7 +14,7 @@ import { z } from 'zod';
           try {
             const queryParams = {
               marketplaceIds: marketplaceIds || [process.env.SP_API_MARKETPLACE_ID],
-              includedData: includedData || ['summaries', 'attributes', 'issues']
+              includedData: (includedData || ['summaries', 'attributes', 'issues']).join(',')
             };
             
             if (issueLocale) {
